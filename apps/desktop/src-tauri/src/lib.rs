@@ -69,6 +69,27 @@ fn list_tools(state: State<'_, RuntimeState>) -> Vec<nyx_tools::ToolDescriptor> 
 }
 
 #[tauri::command]
+fn list_connectors() -> Vec<nyx_connectors::ConnectorDescriptor> {
+    nyx_connectors::ConnectorRegistry::new().descriptors()
+}
+
+#[tauri::command]
+async fn invoke_connector(
+    server: String,
+    tool: String,
+    input: Value,
+) -> Result<nyx_connectors::ConnectorResult, String> {
+    nyx_connectors::ConnectorRegistry::new()
+        .invoke(nyx_connectors::ConnectorInvocation {
+            server,
+            tool,
+            input,
+        })
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn schedule_list(workspace_root: String) -> Result<Vec<nyx_scheduler::ScheduledJob>, String> {
     nyx_scheduler::default_store(&PathBuf::from(workspace_root))
         .load()
@@ -201,6 +222,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start_task,
             list_tools,
+            list_connectors,
+            invoke_connector,
             schedule_list,
             schedule_create,
             plan_request,

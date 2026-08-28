@@ -10,6 +10,7 @@ members = [
   "crates/nyx-integrations",
   "crates/nyx-planner",
   "crates/nyx-scheduler",
+  "crates/nyx-connectors",
   "crates/nyx-agent",
   "crates/nyx-voice",
 ]

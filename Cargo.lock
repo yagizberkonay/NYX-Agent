@@ -2003,6 +2003,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nyx-connectors"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "nyx-core"
 version = "0.1.0"
 dependencies = [
@@ -2018,6 +2028,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "nyx-agent",
+ "nyx-connectors",
  "nyx-core",
  "nyx-planner",
  "nyx-scheduler",
