@@ -69,6 +69,18 @@ fn list_tools(state: State<'_, RuntimeState>) -> Vec<nyx_tools::ToolDescriptor> 
 }
 
 #[tauri::command]
+async fn plan_request(
+    state: State<'_, RuntimeState>,
+    request: String,
+) -> Result<nyx_planner::PlannerOutput, String> {
+    let planner = nyx_planner::Planner::from_env().map_err(|error| error.to_string())?;
+    planner
+        .plan(&request, &state.engine.tool_descriptors())
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 async fn execute_tool(
     state: State<'_, RuntimeState>,
     name: String,
@@ -169,6 +181,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start_task,
             list_tools,
+            plan_request,
             execute_tool,
             runtime_health,
             voice_health,

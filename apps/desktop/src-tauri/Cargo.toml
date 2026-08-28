@@ -17,6 +17,7 @@ tauri-build = { version = "2.4", features = [] }
 [dependencies]
 anyhow.workspace = true
 nyx-agent = { path = "../../../crates/nyx-agent" }
+nyx-planner = { path = "../../../crates/nyx-planner" }
 nyx-core = { path = "../../../crates/nyx-core" }
 nyx-tools = { path = "../../../crates/nyx-tools" }
 nyx-voice = { path = "../../../crates/nyx-voice" }

@@ -1990,6 +1990,7 @@ dependencies = [
  "nyx-core",
  "nyx-host",
  "nyx-integrations",
+ "nyx-planner",
  "nyx-security",
  "nyx-tools",
  "nyx-tools-fs",
@@ -2018,6 +2019,7 @@ dependencies = [
  "anyhow",
  "nyx-agent",
  "nyx-core",
+ "nyx-planner",
  "nyx-tools",
  "nyx-voice",
  "serde",
@@ -2058,6 +2060,17 @@ dependencies = [
  "tokio",
  "tokio-util",
  "uuid",
+]
+
+[[package]]
+name = "nyx-planner"
+version = "0.1.0"
+dependencies = [
+ "nyx-tools",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

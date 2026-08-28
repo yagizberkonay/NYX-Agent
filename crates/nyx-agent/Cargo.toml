@@ -10,6 +10,7 @@ chrono.workspace = true
 nyx-core = { path = "../nyx-core" }
 nyx-host = { path = "../nyx-host" }
 nyx-integrations = { path = "../nyx-integrations" }
+nyx-planner = { path = "../nyx-planner" }
 nyx-security = { path = "../nyx-security" }
 nyx-tools = { path = "../nyx-tools" }
 nyx-tools-fs = { path = "../nyx-tools-fs" }
