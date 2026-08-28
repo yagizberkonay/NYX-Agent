@@ -43,6 +43,10 @@ jobs:
         working-directory: apps/desktop
         run: pnpm add -D @tauri-apps/cli@2
 
+      - name: Build frontend for Tauri context
+        working-directory: apps/desktop
+        run: pnpm build
+
       - name: Quality gate
         run: |
           cargo fmt --all -- --check
