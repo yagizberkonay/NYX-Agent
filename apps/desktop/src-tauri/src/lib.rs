@@ -73,6 +73,8 @@ fn runtime_health() -> serde_json::Value {
         "name": "NYX Runtime",
         "status": "ready",
         "privacy": "local-first",
+        "autonomy_mode": std::env::var("NYX_AUTONOMY_MODE").unwrap_or_else(|_| "manual".into()),
+        "host_control": "workspace-bounded",
         "voice": {
             "stt": "whisper",
             "tts": "qwen3-tts-turkish-experimental"

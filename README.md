@@ -1,50 +1,66 @@
 # NYX-Agent
 
-NYX is a local-first, BYOK desktop computer agent. This repository contains a production-oriented Rust core, a Tauri/React desktop UI, secure workspace-scoped tools, and optional local voice sidecars.
+NYX is a local-first, BYOK desktop computer agent. This repository contains a production-oriented Rust core, a Tauri/React desktop UI, secure workspace tools, cross-platform host-control tools, and optional local voice sidecars.
 
-## Current vertical slice
+## Current capability surface
 
-The first slice supports a real, bounded workflow over a selected workspace: inspect files, search content, run a command with explicit target metadata, read Git state, and stream operational events to the UI. The Rust runtime owns policy, tool execution, cancellation, and audit-safe event generation. The UI never receives raw secrets or direct host authority.
+The runtime now exposes a schema-driven tool registry containing workspace filesystem tools and host-control tools. The host layer supports opening allowlisted desktop applications and web services, opening validated HTTP(S) URLs, inspecting running processes, executing bounded commands inside the active workspace, controlling local media players, and sending desktop notifications. Every invocation carries target metadata, timeout behavior, cancellation, and structured audit-safe results.
+
+The current vertical slice can inspect and search a workspace, write inside the workspace, launch common applications such as Spotify/YouTube/browser/terminal/files/VS Code where the host provides the corresponding command, list processes, control media through `playerctl`/AppleScript where available, and execute validated workspace-local shell commands. The agent runtime exposes these descriptors through the Tauri bridge and the React UI.
 
 ## Architecture
 
-The desktop application is split into a React/TypeScript UI, a thin Tauri bridge, and a Rust runtime. The runtime is organized into core value types, security policy, tools, filesystem access, and the agent state machine. Voice integrations are isolated as local sidecars so that model runtimes do not become part of the privileged UI process.
+The desktop application is split into a React/TypeScript UI, a thin Tauri bridge, and a Rust runtime. The runtime is organized into core value types, security policy, tools, filesystem access, host control, voice providers, and the agent state machine. Voice integrations are isolated as local sidecars so that model runtimes do not become part of the privileged UI process.
 
 ## Local development
 
 Install Node.js 22+, pnpm, Rust stable, and the platform prerequisites for Tauri. Then run:
 
 ```bash
-pnpm install
-pnpm dev
+cd NYX-Agent
+pnpm --dir apps/desktop install
+pnpm --dir apps/desktop dev
 cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-The frontend can be built independently with `pnpm build`. The Rust workspace is tested with `cargo test --workspace`.
+The production UI build is created with `pnpm --dir apps/desktop build`. A Tauri debug build can be created from `apps/desktop` with `pnpm exec tauri build --debug` after the platform WebView dependencies are installed.
+
+## Autonomous mode
+
+Set `NYX_AUTONOMY_MODE=autonomous` in the local environment to suppress interactive approval prompts for in-workspace mutations and explicitly supported host actions. This is not an unrestricted root shell: workspace boundary checks, path traversal protection, URL validation, dangerous command-pattern blocking, process timeouts, cancellation, and audit events remain active. The default remains `manual`.
+
+Never commit API keys, OAuth tokens, cookies, browser profiles, or model weights. Store credentials in the operating system credential store or environment manager and keep `.env` local.
 
 ## Voice sidecars
 
-Whisper is the default local speech-to-text provider. The sidecar accepts an audio path on stdin as JSON and returns a deterministic JSON response. The `tr` language is the default, and the model is configurable through `NYX_WHISPER_MODEL`.
+Whisper is the local speech-to-text provider. It accepts an audio path through a JSONL stdin protocol and returns a deterministic JSON response. Turkish (`tr`) is the default language and the model is configurable through `NYX_WHISPER_MODEL`.
 
-Qwen3-TTS is exposed through the same provider contract. The official Qwen3-TTS repository currently documents ten native languages and does not list Turkish; therefore Turkish must be supplied by a verified Turkish-capable checkpoint or adapter configured through `NYX_QWEN_TTS_MODEL`. The application keeps this model configurable and does not silently claim that the official checkpoint is native Turkish.
+Qwen3-TTS is exposed through the same provider contract. The official Qwen3-TTS checkpoint does not list Turkish among its native languages, so NYX uses the experimental `hcfk/qwen3-tts-turkish` adapter with the compatible `Qwen/Qwen3-TTS-12Hz-0.6B-Base` checkpoint. The adapter is marked experimental and is not represented as native official Turkish support.
 
-Install optional providers in an isolated Python environment:
+Install the optional providers in an isolated environment:
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r sidecars/requirements.txt
+./sidecars/install.sh
+./sidecars/download_turkish_adapter.sh
 ```
 
-Whisper also requires `ffmpeg` on the host. Model weights are downloaded by the provider runtime on first use and are intentionally excluded from Git.
+Set the local paths when using downloaded weights:
 
-## Security defaults
+```bash
+export NYX_QWEN_TTS_BASE_MODEL="$PWD/models/qwen3-tts-base"
+export NYX_QWEN_TTS_ADAPTER_DIR="$PWD/models/qwen3-tts-turkish/adapter/final"
+```
 
-Workspace access is scoped to the configured root. Path traversal and symlink escapes are rejected. Shell execution is disabled by default in the UI until a user-approved policy is supplied. Tool inputs are schema-validated, time-bounded, cancellable, and represented with structured audit events. Secrets belong in the operating system credential store or deployment secret manager; they must never be committed to this repository.
+Whisper requires `ffmpeg`; Qwen3-TTS checks for `sox` as well. Model weights are intentionally excluded from Git. The sidecars report health independently, and the Rust provider enforces process boundaries, cancellation, and timeouts.
+
+## Integration roadmap
+
+Calendar, email, WordPress messaging, CRM, lead research, deep research, browser automation, project scaffolding, Spotify/YouTube API control, proactive reminders, and durable customer follow-up require provider adapters and user-owned credentials. The registry and policy contracts are designed for these additions, but they are not silently claimed as completed merely because a generic descriptor exists. Connectors should be enabled only for the services the user actually uses, with provider-specific scopes, rate limits, idempotency keys, audit records, and explicit opt-out controls.
 
 ## Deployment
 
-The desktop application is distributed as a signed installer. The Vercel deployment is a static product/demo surface for the UI and documentation; it does not expose host controls, local secrets, or privileged runtime APIs. The local Tauri binary remains the only component that can operate the user's machine.
+The Vercel deployment is a static product/demo surface for the UI. It does not expose host controls, local secrets, browser sessions, or privileged runtime APIs. The local Tauri binary remains the component that can operate the user's machine. GitHub Actions validates Rust formatting, Clippy, workspace tests, frontend build, and Python sidecar syntax.
 
 ## License
 

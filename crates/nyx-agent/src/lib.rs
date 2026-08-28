@@ -2,6 +2,8 @@ use chrono::Utc;
 use nyx_core::{
     ActivityEvent, ActivityStatus, ExecutionTarget, PlanStep, StepStatus, TaskState, TaskStatus,
 };
+use nyx_host::HostTool;
+use nyx_integrations::IntegrationTool;
 use nyx_tools::{ToolContext, ToolRegistry, ToolResult};
 use nyx_tools_fs::FileSystemTool;
 use serde_json::{json, Value};
@@ -29,12 +31,22 @@ pub struct AgentEngine {
 
 impl AgentEngine {
     pub fn new() -> Self {
-        let tools = vec![
-            Arc::new(FileSystemTool::read()) as Arc<dyn nyx_tools::NyxTool>,
-            Arc::new(FileSystemTool::search()) as Arc<dyn nyx_tools::NyxTool>,
-            Arc::new(FileSystemTool::list()) as Arc<dyn nyx_tools::NyxTool>,
-            Arc::new(FileSystemTool::write()) as Arc<dyn nyx_tools::NyxTool>,
+        let mut tools: Vec<Arc<dyn nyx_tools::NyxTool>> = vec![
+            Arc::new(FileSystemTool::read()),
+            Arc::new(FileSystemTool::search()),
+            Arc::new(FileSystemTool::list()),
+            Arc::new(FileSystemTool::write()),
         ];
+        tools.extend(
+            HostTool::all()
+                .into_iter()
+                .map(|tool| Arc::new(tool) as Arc<dyn nyx_tools::NyxTool>),
+        );
+        tools.extend(
+            IntegrationTool::all()
+                .into_iter()
+                .map(|tool| Arc::new(tool) as Arc<dyn nyx_tools::NyxTool>),
+        );
         let (events, _) = broadcast::channel(256);
         Self {
             registry: ToolRegistry::new(tools),

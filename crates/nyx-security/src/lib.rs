@@ -75,6 +75,8 @@ pub enum Operation {
     GitCommit,
     GitPush,
     ProductionDeploy,
+    ExternalRead,
+    ExternalWrite,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,12 +89,34 @@ pub enum PolicyDecision {
 #[derive(Debug, Clone)]
 pub struct PolicyEngine {
     allow_shell_read_only: bool,
+    autonomous: bool,
 }
 
 impl Default for PolicyEngine {
     fn default() -> Self {
         Self {
             allow_shell_read_only: true,
+            autonomous: false,
+        }
+    }
+}
+
+impl PolicyEngine {
+    pub fn autonomous() -> Self {
+        Self {
+            allow_shell_read_only: true,
+            autonomous: true,
+        }
+    }
+
+    pub fn from_env() -> Self {
+        if std::env::var("NYX_AUTONOMY_MODE")
+            .map(|value| value.eq_ignore_ascii_case("autonomous"))
+            .unwrap_or(false)
+        {
+            Self::autonomous()
+        } else {
+            Self::default()
         }
     }
 }
@@ -103,7 +127,19 @@ impl PolicyEngine {
             return PolicyDecision::Deny;
         }
         match operation {
-            Operation::FileRead | Operation::FileSearch | Operation::GitDiff => {
+            Operation::FileRead
+            | Operation::FileSearch
+            | Operation::GitDiff
+            | Operation::ExternalRead => PolicyDecision::Allow,
+            Operation::FileWrite
+            | Operation::FileDelete
+            | Operation::ShellExecute
+            | Operation::GitCommit
+            | Operation::GitPush
+            | Operation::ProductionDeploy
+            | Operation::ExternalWrite
+                if self.autonomous =>
+            {
                 PolicyDecision::Allow
             }
             Operation::ShellReadOnly if self.allow_shell_read_only => PolicyDecision::Allow,
@@ -112,7 +148,8 @@ impl PolicyEngine {
             | Operation::ShellExecute
             | Operation::GitCommit
             | Operation::GitPush
-            | Operation::ProductionDeploy => PolicyDecision::Ask,
+            | Operation::ProductionDeploy
+            | Operation::ExternalWrite => PolicyDecision::Ask,
             Operation::ShellReadOnly => PolicyDecision::Ask,
         }
     }
@@ -205,6 +242,20 @@ mod tests {
         );
         assert!(policy.require(Operation::FileWrite, true, false).is_err());
         assert!(policy.require(Operation::FileWrite, true, true).is_ok());
+    }
+
+    #[test]
+    fn autonomous_mode_allows_in_scope_mutations() {
+        let policy = PolicyEngine::autonomous();
+        assert_eq!(
+            policy.decide(Operation::FileWrite, true),
+            PolicyDecision::Allow
+        );
+        assert!(policy.require(Operation::ShellExecute, true, false).is_ok());
+        assert_eq!(
+            policy.decide(Operation::FileWrite, false),
+            PolicyDecision::Deny
+        );
     }
 
     #[test]

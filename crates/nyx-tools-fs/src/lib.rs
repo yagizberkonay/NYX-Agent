@@ -149,7 +149,7 @@ impl NyxTool for FileSystemTool {
         let path = scope
             .resolve(Self::input_path(&input)?)
             .map_err(|error| ToolError::InvalidInput(error.to_string()))?;
-        let policy = PolicyEngine::default();
+        let policy = PolicyEngine::from_env();
         policy
             .require(self.policy, true, context.approved)
             .map_err(|_| ToolError::PermissionDenied)?;
