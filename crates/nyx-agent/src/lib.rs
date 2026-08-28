@@ -4,6 +4,7 @@ use nyx_core::{
 };
 use nyx_host::HostTool;
 use nyx_integrations::IntegrationTool;
+use nyx_planner::{Planner, PlannerOutput};
 use nyx_tools::{ToolContext, ToolRegistry, ToolResult};
 use nyx_tools_fs::FileSystemTool;
 use serde_json::{json, Value};
@@ -119,6 +120,14 @@ impl AgentEngine {
             return Err(AgentError::Cancelled);
         }
 
+        if std::env::var("NYX_ENABLE_LLM_PLANNER").as_deref() == Ok("1") {
+            if let Ok(planner) = Planner::from_env() {
+                return self
+                    .run_planned(request, workspace_root, task, planner, cancellation)
+                    .await;
+            }
+        }
+
         let step_id = task.plan[0].id;
         task.current_step = Some(step_id);
         task.plan[0].status = StepStatus::Running;
@@ -178,6 +187,87 @@ impl AgentEngine {
             task.task_id,
             ActivityStatus::Success,
             "Verification passed",
+        ));
+        Ok(task)
+    }
+
+    async fn run_planned(
+        &self,
+        request: String,
+        workspace_root: std::path::PathBuf,
+        mut task: TaskState,
+        planner: Planner,
+        cancellation: CancellationToken,
+    ) -> Result<TaskState, AgentError> {
+        let plan: PlannerOutput = planner
+            .plan(&request, &self.tool_descriptors())
+            .await
+            .map_err(|error| AgentError::Input(error.to_string()))?;
+        task.plan = plan
+            .calls
+            .iter()
+            .map(|call| PlanStep {
+                id: Uuid::new_v4(),
+                title: format!("Execute {}", call.name),
+                tool: Some(call.name.clone()),
+                status: StepStatus::Planned,
+                target: ExecutionTarget::Host,
+            })
+            .collect();
+        if task.plan.is_empty() {
+            task.status = TaskStatus::Failed;
+            return Err(AgentError::Input(
+                "planner returned no executable tool calls".into(),
+            ));
+        }
+        for (index, call) in plan.calls.into_iter().enumerate() {
+            if cancellation.is_cancelled() {
+                task.status = TaskStatus::Cancelled;
+                return Err(AgentError::Cancelled);
+            }
+            task.current_step = Some(task.plan[index].id);
+            task.plan[index].status = StepStatus::Running;
+            self.emit(ActivityEvent {
+                tool: Some(call.name.clone()),
+                target: Some(ExecutionTarget::Host),
+                ..ActivityEvent::status(
+                    task.task_id,
+                    ActivityStatus::Running,
+                    "Executing planned tool",
+                )
+            });
+            let context = ToolContext {
+                task_id: task.task_id,
+                invocation_id: Uuid::new_v4(),
+                workspace_root: workspace_root.clone(),
+                approved: std::env::var("NYX_AUTONOMY_MODE").as_deref() == Ok("autonomous"),
+                target: ExecutionTarget::Host,
+            };
+            let result = self
+                .execute_tool(&call.name, call.arguments, context, cancellation.clone())
+                .await?;
+            task.plan[index].status = StepStatus::Verified;
+            self.emit(ActivityEvent {
+                tool: Some(result.tool),
+                target: Some(ExecutionTarget::Host),
+                duration_ms: Some(result.duration_ms),
+                ..ActivityEvent::status(
+                    task.task_id,
+                    ActivityStatus::Success,
+                    "Planned tool completed",
+                )
+            });
+        }
+        task.status = TaskStatus::Completed;
+        task.verification.verified = true;
+        task.verification
+            .evidence
+            .push("all planned tool calls completed".into());
+        task.updated_at = Utc::now();
+        self.emit(ActivityEvent::status(
+            task.task_id,
+            ActivityStatus::Success,
+            "Autonomous plan verified",
         ));
         Ok(task)
     }
