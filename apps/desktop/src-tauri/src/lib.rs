@@ -3,12 +3,15 @@ use nyx_voice::{QwenTurkishProvider, SidecarConfig, WhisperProvider};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
+use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone)]
 struct RuntimeState {
     engine: AgentEngine,
+    active_cancellation: Arc<Mutex<Option<CancellationToken>>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -33,6 +36,8 @@ async fn start_task(
     workspace_root: String,
 ) -> Result<StartTaskResponse, String> {
     let engine = state.engine.clone();
+    let cancellation = CancellationToken::new();
+    *state.active_cancellation.lock().await = Some(cancellation.clone());
     let mut events = engine.subscribe();
     let app_for_events = app.clone();
     let task_events = tokio::spawn(async move {
@@ -50,10 +55,11 @@ async fn start_task(
         }
     });
     let result = engine
-        .run(request, workspace_root, CancellationToken::new())
+        .run(request, workspace_root, cancellation)
         .await
         .map_err(|error| error.to_string());
     task_events.abort();
+    *state.active_cancellation.lock().await = None;
     let task = result?;
     Ok(StartTaskResponse {
         task_id: task.task_id.to_string(),
@@ -61,6 +67,14 @@ async fn start_task(
         verified: task.verification.verified,
         summary: "Workspace analysis completed and verified".into(),
     })
+}
+
+#[tauri::command]
+async fn stop_task(state: State<'_, RuntimeState>) -> Result<(), String> {
+    if let Some(token) = state.active_cancellation.lock().await.as_ref() {
+        token.cancel();
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -218,9 +232,11 @@ pub fn run() {
     tauri::Builder::default()
         .manage(RuntimeState {
             engine: AgentEngine::new(),
+            active_cancellation: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             start_task,
+            stop_task,
             list_tools,
             list_connectors,
             invoke_connector,

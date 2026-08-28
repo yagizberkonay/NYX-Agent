@@ -42,6 +42,13 @@ type TaskResult = {
   summary: string;
 };
 
+type ConnectorDescriptor = {
+  server: string;
+  display_name: string;
+  enabled: boolean;
+  purpose: string;
+};
+
 type ToolDescriptor = {
   name: string;
   description: string;
@@ -74,6 +81,7 @@ function App() {
   const [workspace, setWorkspace] = useState(".");
   const [activity, setActivity] = useState<ActivityEvent[]>(demoEvents);
   const [tools, setTools] = useState<ToolDescriptor[]>([]);
+  const [connectors, setConnectors] = useState<ConnectorDescriptor[]>([]);
   const [lastResult, setLastResult] = useState<TaskResult | null>(null);
   const [showActivity, setShowActivity] = useState(true);
   const [notice, setNotice] = useState("Hazır");
@@ -86,8 +94,13 @@ function App() {
     let unlisten: (() => void) | undefined;
     void (async () => {
       try {
-        const availableTools = await invoke<ToolDescriptor[]>("list_tools");
+        const [availableTools, availableConnectors] = await Promise.all([
+          invoke<ToolDescriptor[]>("list_tools"),
+          invoke<ConnectorDescriptor[]>("list_connectors"),
+        ]);
         setTools(availableTools);
+        setConnectors(availableConnectors);
+        await invoke("runtime_health");
         unlisten = await listen<ActivityEvent>("nyx://activity", (event) => {
           setActivity((current) => [...current.slice(-19), event.payload]);
           if (["started", "running"].includes(event.payload.status)) setOrbState("working");
@@ -95,8 +108,8 @@ function App() {
           if (event.payload.status === "error") setOrbState("error");
           setNotice(event.payload.message);
         });
-      } catch {
-        setNotice("Arayüz modu · runtime bağlantısı bekleniyor");
+      } catch (error) {
+        setNotice(`Runtime bağlantı hatası: ${String(error)}`);
       }
     })();
     return () => unlisten?.();
@@ -119,22 +132,16 @@ function App() {
     setActivity((current) => [...current.slice(-19), started]);
 
     if (!isTauriRuntime()) {
-      window.setTimeout(() => {
-        const complete: ActivityEvent = {
-          event_id: crypto.randomUUID(),
-          task_id: "demo",
-          timestamp: new Date().toISOString(),
-          status: "success",
-          message: "Demo doğrulaması tamamlandı",
-          tool: "directory_list",
-          target: "host",
-          duration_ms: 18,
-        };
-        setActivity((current) => [...current.slice(-19), complete]);
-        setLastResult({ task_id: "demo", status: "completed", verified: true, summary: `“${cleanRequest}” için demo akışı tamamlandı.` });
-        setOrbState("completed");
-        setNotice("Doğrulama başarılı");
-      }, 650);
+      setOrbState("error");
+      setNotice("NYX masaüstü runtime’ı gerekli · Tauri uygulamasını açın");
+      setActivity((current) => [...current.slice(-19), {
+        event_id: crypto.randomUUID(),
+        task_id: "browser",
+        timestamp: new Date().toISOString(),
+        status: "error",
+        message: "Web demo görev çalıştırmaz; yerel Tauri runtime gerekli",
+        target: "browser",
+      }]);
       return;
     }
 
@@ -158,7 +165,14 @@ function App() {
     }
   }
 
-  function stopTask() {
+  async function stopTask() {
+    if (isTauriRuntime()) {
+      try {
+        await invoke("stop_task");
+      } catch (error) {
+        setNotice(`Durdurma hatası: ${String(error)}`);
+      }
+    }
     setOrbState("idle");
     setNotice("Görev durduruldu");
     setActivity((current) => [
@@ -254,7 +268,7 @@ function App() {
         <div className="dock-bottom"><div className="dock-hints"><span><kbd>↵</kbd> gönder</span><span><kbd>⇧ ↵</kbd> yeni satır</span><button className="add-button"><Plus size={14} /> ekle</button></div><div className="dock-actions"><button className="secondary-button" onClick={() => setShowActivity(true)}><PanelRight size={15} /> Akış</button>{isWorking ? <button className="stop-button" onClick={stopTask}><Pause size={15} /> Durdur</button> : <button className="send-button" onClick={() => void runTask()}>Başlat <ArrowUpRight size={16} /></button>}</div></div>
       </section>
 
-      <footer className="bottom-meta"><div><span className="meta-label">MODEL</span><span>NYX Local / BYOK ready</span></div><div><span className="meta-label">VOICE</span><span>Whisper STT · Qwen3-TTS Türkçe deneysel</span></div><div><span className="meta-label">TOOLS</span><span>{activeTools.length || 4} aktif</span></div><div className="footer-help"><Info size={14} /> Privacy & control</div></footer>
+      <footer className="bottom-meta"><div><span className="meta-label">MODEL</span><span>NYX Local / BYOK ready</span></div><div><span className="meta-label">VOICE</span><span>Whisper STT · Qwen3-TTS Türkçe deneysel</span></div><div><span className="meta-label">TOOLS</span><span>{activeTools.length} native · {connectors.length} MCP</span></div><div className="footer-help"><Info size={14} /> Tauri runtime required</div></footer>
       {lastResult?.verified && <div className="verified-toast"><Check size={15} /> {lastResult.summary}</div>}
     </main>
   );
