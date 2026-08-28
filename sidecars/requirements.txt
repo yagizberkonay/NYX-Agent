@@ -1,6 +1,6 @@
-# Optional local voice providers. Install inside a dedicated virtual environment.
-openai-whisper
-qwen-tts
-peft
-soundfile
-numpy
+# Direct provider dependencies. Torch is resolved by qwen-tts/Whisper for the host platform.
+openai-whisper==20250625
+qwen-tts==0.1.1
+peft==0.20.0
+soundfile==0.14.0
+numpy==2.5.2

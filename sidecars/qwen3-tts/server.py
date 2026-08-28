@@ -109,7 +109,7 @@ def synthesize(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("output_path must end with .wav")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    base_model = str(payload.get("base_model") or os.getenv("NYX_QWEN_TTS_BASE_MODEL", "Qwen/Qwen3-TTS-0.6B-Base"))
+    base_model = str(payload.get("base_model") or os.getenv("NYX_QWEN_TTS_BASE_MODEL", "Qwen/Qwen3-TTS-12Hz-0.6B-Base"))
     adapter_dir = str(payload.get("adapter_dir") or os.getenv("NYX_QWEN_TTS_ADAPTER_DIR", ""))
     device = str(payload.get("device") or os.getenv("NYX_QWEN_TTS_DEVICE", "auto"))
     language = str(payload.get("language") or "Turkish")
@@ -179,7 +179,7 @@ def main() -> None:
                     "ok": True,
                     "provider": "qwen3-tts-turkish",
                     "installed": _installed(),
-                    "base_model": os.getenv("NYX_QWEN_TTS_BASE_MODEL", "Qwen/Qwen3-TTS-0.6B-Base"),
+                    "base_model": os.getenv("NYX_QWEN_TTS_BASE_MODEL", "Qwen/Qwen3-TTS-12Hz-0.6B-Base"),
                     "adapter_configured": bool(os.getenv("NYX_QWEN_TTS_ADAPTER_DIR")),
                     "experimental": True,
                 })

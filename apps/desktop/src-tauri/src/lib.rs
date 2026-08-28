@@ -88,7 +88,7 @@ async fn voice_health() -> Result<serde_json::Value, String> {
     let qwen = QwenTurkishProvider::new(
         SidecarConfig::python(sidecars_root().join("qwen3-tts/server.py")),
         std::env::var("NYX_QWEN_TTS_BASE_MODEL")
-            .unwrap_or_else(|_| "Qwen/Qwen3-TTS-0.6B-Base".into()),
+            .unwrap_or_else(|_| "Qwen/Qwen3-TTS-12Hz-0.6B-Base".into()),
         std::env::var("NYX_QWEN_TTS_ADAPTER_DIR").unwrap_or_default(),
     );
     let cancellation = CancellationToken::new();
@@ -125,7 +125,7 @@ async fn voice_synthesize(
     let provider = QwenTurkishProvider::new(
         SidecarConfig::python(sidecars_root().join("qwen3-tts/server.py")),
         std::env::var("NYX_QWEN_TTS_BASE_MODEL")
-            .unwrap_or_else(|_| "Qwen/Qwen3-TTS-0.6B-Base".into()),
+            .unwrap_or_else(|_| "Qwen/Qwen3-TTS-12Hz-0.6B-Base".into()),
         std::env::var("NYX_QWEN_TTS_ADAPTER_DIR").unwrap_or_default(),
     );
     provider
