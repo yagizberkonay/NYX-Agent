@@ -10,6 +10,11 @@ source "${VENV_DIR}/bin/activate"
 python -m pip install --upgrade pip wheel
 python -m pip install -r "${ROOT_DIR}/sidecars/requirements.txt"
 
+if [[ "${NYX_INSTALL_BROWSER:-0}" == "1" ]]; then
+  python -m pip install -r "${ROOT_DIR}/sidecars/requirements-browser.txt"
+  python -m playwright install chromium
+fi
+
 if ! command -v ffmpeg >/dev/null 2>&1; then
   echo "ffmpeg is required by Whisper. Install it with your OS package manager." >&2
   exit 2
@@ -17,6 +22,8 @@ fi
 
 cat <<EOF
 Voice providers installed in ${VENV_DIR}.
+Browser sidecar: ${ROOT_DIR}/sidecars/browser/server.py
+Set NYX_INSTALL_BROWSER=1 before running this script to install Playwright and Chromium.
 Whisper sidecar: ${ROOT_DIR}/sidecars/whisper/server.py
 Qwen3-TTS Turkish sidecar: ${ROOT_DIR}/sidecars/qwen3-tts/server.py
 
