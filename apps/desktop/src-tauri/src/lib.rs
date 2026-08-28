@@ -69,6 +69,26 @@ fn list_tools(state: State<'_, RuntimeState>) -> Vec<nyx_tools::ToolDescriptor> 
 }
 
 #[tauri::command]
+fn schedule_list(workspace_root: String) -> Result<Vec<nyx_scheduler::ScheduledJob>, String> {
+    nyx_scheduler::default_store(&PathBuf::from(workspace_root))
+        .load()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn schedule_create(
+    workspace_root: String,
+    name: String,
+    tool: String,
+    input: Value,
+    interval_seconds: u64,
+) -> Result<nyx_scheduler::ScheduledJob, String> {
+    nyx_scheduler::default_store(&PathBuf::from(workspace_root))
+        .add(name, tool, input, interval_seconds)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 async fn plan_request(
     state: State<'_, RuntimeState>,
     request: String,
@@ -181,6 +201,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start_task,
             list_tools,
+            schedule_list,
+            schedule_create,
             plan_request,
             execute_tool,
             runtime_health,
