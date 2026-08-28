@@ -27,6 +27,23 @@
     }
   },
   "bundle": {
-    "active": false
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": ["icons/icon.png"],
+    "resources": [
+      "../../../sidecars/whisper/server.py",
+      "../../../sidecars/qwen3-tts/server.py",
+      "../../../sidecars/browser/server.py",
+      "../../../sidecars/install.sh",
+      "../../../sidecars/requirements.txt",
+      "../../../sidecars/requirements-browser.txt",
+      "../../../.env.example"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": true
+      }
+    }
   }
 }

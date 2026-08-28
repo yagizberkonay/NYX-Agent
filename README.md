@@ -19,12 +19,12 @@ Install Node.js 22+, pnpm, Rust stable, and the platform prerequisites for Tauri
 ```bash
 cd NYX-Agent
 pnpm --dir apps/desktop install
-pnpm --dir apps/desktop dev
+pnpm --dir apps/desktop tauri:dev
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-The production UI build is created with `pnpm --dir apps/desktop build`. A Tauri debug build can be created from `apps/desktop` with `pnpm exec tauri build --debug` after the platform WebView dependencies are installed.
+The production UI build is created with `pnpm --dir apps/desktop build`. The real desktop agent is launched with `pnpm --dir apps/desktop tauri:dev`; running only `pnpm --dir apps/desktop dev` starts the browser UI without the privileged Tauri runtime. A local desktop installer is produced with `pnpm --dir apps/desktop tauri:build` after the platform WebView dependencies are installed. Windows NSIS/MSI installers are built by `.github/workflows/release-windows.yml` on a Windows GitHub Actions runner when a `v*` tag is pushed or the workflow is manually dispatched.
 
 ## Autonomous mode
 
@@ -58,9 +58,13 @@ Whisper requires `ffmpeg`; Qwen3-TTS checks for `sox` as well. Model weights are
 
 Calendar, email, WordPress messaging, CRM, lead research, deep research, browser automation, project scaffolding, Spotify/YouTube API control, proactive reminders, and durable customer follow-up require provider adapters and user-owned credentials. The registry and policy contracts are designed for these additions, but they are not silently claimed as completed merely because a generic descriptor exists. Connectors should be enabled only for the services the user actually uses, with provider-specific scopes, rate limits, idempotency keys, audit records, and explicit opt-out controls.
 
+## Desktop versus web
+
+The Vercel deployment is a static product/demo surface for the UI. It does not expose host controls, local secrets, browser sessions, or privileged runtime APIs. For real PC control, install and launch the Tauri desktop application; the local binary is the component that can operate the user's machine. GitHub Actions validates Rust formatting, Clippy, workspace tests, frontend build, and Python sidecar syntax, while the Windows release workflow produces NSIS/MSI installers.
+
 ## Deployment
 
-The Vercel deployment is a static product/demo surface for the UI. It does not expose host controls, local secrets, browser sessions, or privileged runtime APIs. The local Tauri binary remains the component that can operate the user's machine. GitHub Actions validates Rust formatting, Clippy, workspace tests, frontend build, and Python sidecar syntax.
+Pushes to GitHub update the source repository. The Vercel deployment is intentionally limited to the non-privileged web surface; it must not be treated as the desktop agent backend.
 
 ## License
 
