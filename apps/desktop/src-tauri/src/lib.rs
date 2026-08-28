@@ -1,6 +1,7 @@
 use nyx_agent::AgentEngine;
 use nyx_voice::{QwenTurkishProvider, SidecarConfig, WhisperProvider};
 use serde::Serialize;
+use serde_json::Value;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, State};
 use tokio_util::sync::CancellationToken;
@@ -65,6 +66,30 @@ async fn start_task(
 #[tauri::command]
 fn list_tools(state: State<'_, RuntimeState>) -> Vec<nyx_tools::ToolDescriptor> {
     state.engine.tool_descriptors()
+}
+
+#[tauri::command]
+async fn execute_tool(
+    state: State<'_, RuntimeState>,
+    name: String,
+    input: Value,
+    workspace_root: String,
+) -> Result<nyx_tools::ToolResult, String> {
+    let autonomous = std::env::var("NYX_AUTONOMY_MODE")
+        .map(|value| value.eq_ignore_ascii_case("autonomous"))
+        .unwrap_or(false);
+    let context = nyx_tools::ToolContext {
+        task_id: uuid::Uuid::new_v4(),
+        invocation_id: uuid::Uuid::new_v4(),
+        workspace_root: PathBuf::from(workspace_root),
+        approved: autonomous,
+        target: nyx_core::ExecutionTarget::Host,
+    };
+    state
+        .engine
+        .execute_tool(&name, input, context, CancellationToken::new())
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -144,6 +169,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start_task,
             list_tools,
+            execute_tool,
             runtime_health,
             voice_health,
             voice_transcribe,

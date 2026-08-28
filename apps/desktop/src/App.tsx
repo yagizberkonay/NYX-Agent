@@ -102,7 +102,7 @@ function App() {
     return () => unlisten?.();
   }, []);
 
-  const activeTools = useMemo(() => tools.filter((tool) => tool.permission !== "deny").slice(0, 4), [tools]);
+  const activeTools = useMemo(() => tools.filter((tool) => tool.permission !== "deny"), [tools]);
 
   async function runTask() {
     const cleanRequest = request.trim() || "Çalışma alanımı analiz et";
