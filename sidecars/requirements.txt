@@ -1,0 +1,6 @@
+# Optional local voice providers. Install inside a dedicated virtual environment.
+openai-whisper
+qwen-tts
+peft
+soundfile
+numpy

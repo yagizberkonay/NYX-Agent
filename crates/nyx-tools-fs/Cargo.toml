@@ -1,0 +1,15 @@
+[package]
+name = "nyx-tools-fs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+nyx-core = { path = "../nyx-core" }
+nyx-security = { path = "../nyx-security" }
+nyx-tools = { path = "../nyx-tools" }
+serde_json.workspace = true
+uuid.workspace = true
+tokio = { version = "1.42", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
+tokio-util = { version = "0.7", features = ["rt"] }

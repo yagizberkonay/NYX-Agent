@@ -1,0 +1,1 @@
+Voice dependencies: Whisper, qwen-tts, PEFT, soundfile, torch, ffmpeg, sox
